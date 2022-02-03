@@ -760,6 +760,20 @@ Provee herramientas para testear los controladores sin necesidad de levantar el 
 
 **Voy a intentar aplicar esto y hablaré más al respecto cuando ya tenga alguna experiencia.**
 
+
+### Context class configuration
+* Con la annotation de clase `@SpringJUnitConfig(classes = {LaurelConfig.class})` podemos especificar el contexto a levantar para nuestra clase de test. En [este ejemplo](https://github.com/springframeworkguru/tb2g-testing-spring/blob/component-scan/src/test/java/org/springframework/samples/petclinic/sfg/junit5/HearingInterpreterLaurelTest.java) podemos ver como al elegir esa configuración, *Spring* ya sabrá que componente levantar en `HearingIntepreter` y por eso podemos usar el `@Autowired`.
+* También está la posibilidad de definir un `@Configuration` dentro de la misma clase de test, donde se puede configurar manualmente cuales *Beans* se van a levantar. Ver [Ejemplo](https://github.com/springframeworkguru/tb2g-testing-spring/blob/component-scan/src/test/java/org/springframework/samples/petclinic/sfg/junit5/HearingInterpreterInnerClassTest.java).
+    * También se puede hacer automáticamente con `@ComponentScan("com.package")`. Ver [Ejemplo](https://github.com/springframeworkguru/tb2g-testing-spring/blob/component-scan/src/test/java/org/springframework/samples/petclinic/sfg/junit5/HearingInterpreterComponentScanTest.java).
+
+**NOTA: Al usar `@ComponentScan`, SpringBoot buscará configuraciones tanto en los packages de *test* como en los de *src*. Debemos asegurarnos de que no se generan conflictos aquí ya que puede llevar a comportamientos indeseados.**
+
+
+### Active profiles
+Otra manera de configurar el contexto el con *profiles*. Por ejemplo, imaginemos que tenemos una suerte de patrón *Strategy* y varias clases de implementaciones de la estrategia con `@Component`. Entonces agregamos `@Profile("uno")` a la primera implementación y `@Profile("dos")` a la segunda.
+
+Luego desde una clase de Test podemos levantar una de esas implementaciones utilizando `@ActiveProfiles("uno")`. Podemos verlo en [este ejemplo](https://github.com/springframeworkguru/tb2g-testing-spring/tree/active-profile/src/test/java/org/springframework/samples/petclinic/sfg/junit5)
+
 ----
 
 ## ❓ Dudas 
