@@ -43,6 +43,12 @@ After cloning this repo, from the project root run:
     - [Usando un archivo CSV como fuente de datos](#usando-un-archivo-csv-como-fuente-de-datos)
     - [Usando métodos como fuente de datos](#usando-métodos-como-fuente-de-datos)
   - [Tests unitarios vs Tests de Integración](#tests-unitarios-vs-tests-de-integración)
+  - [Tipos de test según su capa (Controller, service, etc)](#tipos-de-test-según-su-capa-controller-service-etc)
+    - [Service (Business Logic) o Casos de uso (UseCase en arquitectura hexagonal)](#service-business-logic-o-casos-de-uso-usecase-en-arquitectura-hexagonal)
+    - [Controller (Request & Response format)](#controller-request--response-format)
+        - [Links de interés](#links-de-interes)
+    - [View (Front-end)](#view-front-end)
+    - [API Client (o Adapter)](#api-client-o-adapter)
   - [Extensiones de JUnit](#extensiones-de-junit)
   - [Ejecución de Tests](#ejecución-de-tests)
   - [Mockito](#mockito)
@@ -328,8 +334,67 @@ public class CustomArgsProvider implements ArgumentsProvider {
 }
 ```
 
+
 ## Tests unitarios vs Tests de Integración
 **Maven** usa con convención en el nombre de las clases de test para saber cuál es un **Test de integración**. Para detecte nuestra clase de test como tal, debemos nombrarla con el sufijo **IT** (que viene de *Integration Test*). Por ejemplo: `UsersServiceIT.java`
+
+Acá dejo un [articulo super recomendado](^reflectoring) sobre este tema.
+
+[^reflectoring]: https://reflectoring.io/spring-boot-web-controller-test/#unit-or-integration-test
+
+
+## Tipos de test según su capa (Controller, service, etc)
+Una vez que ya estemos más adentrados dentro del mundo del testing seguramente nos pongamos a pensar **¿Está bien que esté verificando esto acá?** Y lo cierto es que dependerá del contexto...
+
+### Service (Business Logic) o Casos de uso (UseCase en arquitectura hexagonal)
+Que se debe probar aqui:
+- Que las llamadas a los métodos o servicios necesarios fueron realizadas solo la cantidad de veces necesarias.
+- Lógica de negocio: idealmente todos los escenarios posibles
+- Idealmente: todas las combinaciones de inputs posibles
+
+Que NO se debe probar:
+- Llamadas a APIs o servicios de terceros: usar un mock con la respuesta esperada
+- Recuperar los datos de la BD: usar un mock con la respuesta esperada
+
+
+### Controller (Request & Response format)
+> NOTA: utilizar `@WebMvcTest(controllers = RegisterRestController.class)` se considera como un ***falso* test de integración** porque levanta el contexto de spring pero solo para el controlador que le indicamos.
+
+Que se debe probar aquí:
+- Request: Verbo HTTP, body, parametros, content-type, headers, Validaciones (si usas Bean Validators `@Valid`)
+- Response: Código de estado, formato, content-type, headers
+- Serialización y deserialización: usar una instancia real del object mapper, no un mock.
+- Respuestas ante errores
+- Middleware, Interceptors HTTP o ControllerAdvice: aunque esto es debatible, en mi opinion se debe levantar una instancia real de cada uno al probar los distintos endpoints para que en la request/response se refleje cualquier validación o modificación que estos hagan, por ej: validar que un usuario está autorizado o que en la request se envía un determinado header. Otra opción es hacer otra clase de test especificamente para esto *(Ver nota más abajo).
+
+Que NO se debe probar:
+- Lógica de negocio. En su lugar usar Mocks de los servicios con la respuesta esperada.
+
+>**NOTA**:
+> 
+> La desventaja de probar los `ControllerAdvice` en una clase aparte (en vez de instanciándolo en la del controlador) es que la respuesta que obtengas en el test del controller **puede ser diferente** a la que obtengas si haces una prueba de escritorio con la aplicación andando.
+
+#### Links de interes
+- SUPER RECOMENDADO: https://reflectoring.io/spring-boot-web-controller-test/
+
+
+### View (Front-end)
+Esto es un mundo completamente diferente y por ahora queda fuera del alcance. Sé que hay al menos 2 enfoques a grandes rasgos:
+
+- **Manual**: que una persona (QA) levante la aplicación y pruebe todas las funciones manualmente para asegurarse que anda todo bien.
+- **Tests automatizados**: generalmente se usa ***Selenium*** o algún software similar que simulan a un usuario utilizando el navegador web y siguiendo una serie de pasos
+- **Tests unitarios**: por lo que entiendo esto no se usa mucho en front-end, pero en *Typescript* son los archivos terminados en `.spec.ts`. Estos mismos archivos son utilizados para hacer tests en *NodeJS* junto con el framework ***Jest***.
+
+
+### API Client (o Adapter)
+Basicamente solo podemos probar que la respuesta de la API **siga respetando el contrato** con el cual la integramos.
+
+Contemplemos un poco la situación a la hora de testear esto:
+1. Si corremos los tests contra endpoints reales (ej: QA), dependemos de que estos estén disponibles para que los tests pasen. Esto **puede ser un problema** cuando tenemos un *pipeline* de CI/CD que no nos permite avanzar si los tests no pasan (EJ: mvn release)
+2. Si corremos los tests contra *Mock-ups* evitaremos tener este problema, pero por otro lado, si nos modifican el contrato **no nos daremos cuenta que se rompió** hasta que hagamos la prueba de escritorio o test de integración.
+3. Por los problemas mencionados anteriormente, lo más práctico es hacer las pruebas manualmente en un ambiente de testing. En algunos casos estas pruebas pueden automatizarse
+
+**Queda pendiente investigar herramientas de *Test Automation***
 
 ## Extensiones de JUnit
 Hay una librería propia de JUnit que ofrece extensiones básicas como `BeforeTestExecutionCallback` y `AfterTestExecutionCallback` que pueden resultar útiles para medir los tiempos de un Test.
